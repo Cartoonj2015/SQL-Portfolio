@@ -1,0 +1,315 @@
+/*The content strategy team needs a list of all tv shows on Netflix with at least a 7.0 score on IMDb and at least a 75 Rotten Tomatoes score for shows released after our inception. Sort by the score from largest to smallest, then by the title name from A to Z.*/
+select title,
+netflix,
+imdb,
+rotten_tomatoes,
+year
+from streaming_shows
+where netflix = '1' and imdb >= 7.0 and rotten_tomatoes >= 75 and year > 1997
+order by rotten_tomatoes desc, title asc
+
+
+/*List of millennial users in our top market that joined in the last year whose monthly subscription is at least $14.99 per month. Sort by the country from A to Z, then by the join date from newest to oldest if you may.*/
+select 
+user_id,
+monthly_revenue,
+join_date,
+age,
+country
+from userbase
+where age between 25 and 34 and country in ('United States','Canada') and
+join_date between '10/01/2022' and '09/30/2023' and monthly_revenue >= 14.99
+
+
+/*Which directors have PG-13 movies that were released in the last 3 years?*/
+select Director,
+title,
+Type,
+Rating,
+Release_Year
+from titles
+where type = 'Movie' and rating = 'PG-13' and release_year between 2020 and 2023
+
+/*All users who joined the quarter after the start of the pandemic*/
+select user_id,
+join_date,
+monthname(join_date) as Join_Month,
+year(join_date) as Join_Year
+from userbase
+where monthname(join_date) in ('Apr','May','Jun') and year(join_date) = 2020
+
+/*May you provide us with a list of countries, how many total titles are on Netflix in the country, and the pricing?*/
+select country,
+basic_cost_per_month,
+standard_cost_per_month,
+premium_cost_per_month,
+no_of_tv_shows,
+no_of_movies,
+no_of_tv_shows + no_of_movies as Total_No_Titles
+from netflix_countries
+
+/*Our normal trading volume on the market is roughly 6.5 million shares per day.
+Return a list of our stock performance along with the trading dates for stocks that traded at least normal volume in Q3 and Q4 in 2021.
+Be sure to also calculate the difference between the open and close price as we will need this to analyze fluctuations within the stock.*/
+	select quarter(trading_date) as Stock_Quarter,
+year(trading_date) as Stock_Year,
+*,
+close-open as Price_Diff
+from stock_price
+where volume >= 6500000 and quarter(trading_date) > 2 and year(trading_date) = 2021
+
+
+We are considering a 15% increase for all plans for our top 10 countries with the largest content offering (excluding our top markets since we just did a price increase in our top markets).
+Yet, we only want to increase in these countries if the 15% increase does not exceed $1.50 per month.
+Return these countries with what the additional increase would be along with their new proposed prices and the size of their content. */
+select *,
+no_of_tv_shows+no_of_movies as Total_Content,
+basic_cost_per_month*1.15 as New_Basic,
+standard_cost_per_month*1.15 as New_Standard,
+premium_cost_per_month*1.15 as New_Premium,
+basic_cost_per_month*.15 as Basic_Discount,
+standard_cost_per_month*.15 as Standard_Discount,
+premium_cost_per_month*.15 as Premium_Discount
+from netflix_countries
+where basic_cost_per_month*.15 <= 1.50 and standard_cost_per_month*.15 <= 1.50 and
+premium_cost_per_month*.15 <= 1.50 and country not in ('United States','Canada')
+order by Total_Content desc
+limit 10
+
+/*Due to the high costs in streaming licensing, we are considering purging 10% of the current library size for all countries.
+If we were to do this, what would be the library size for each country after the 10% purge?*/
+select country,
+no_of_tv_shows,
+no_of_movies,
+no_of_movies+no_of_tv_shows as Total_Library_by_Country,
+(no_of_movies+no_of_tv_shows)*.90 as Post_Purge
+from netflix_countries
+
+
+
+/*	Which countries are in both the Countries and Prices table?*/
+Tables:
+- Netflix_Countries
+- Netflix_Prices*/
+
+select netflix_countries.country as NCCountry,
+netflix_prices.country as NPCountry
+from netflix_countries inner join netflix_prices on netflix_countries.country=netflix_prices.country
+
+
+	/*Our international finance team is asking if you can provide the domestic currency for all non-email subscribers located outside of our top markets. Thanks!
+-Non email subscribers
+- Domestic currency
+- Not in our top market
+
+Tables:
+Email_Sub - which users are email subscribers
+Userbase - provides a list of ALL users
+Netflix_Prices - currency
+
+Unique IDs:
+Email_Sub - ID
+Userbase - User_ID
+Netflix_Prices - Country; Userbase - Country*/
+select 
+userbase.user_id,
+userbase.country,
+email_sub.id,
+netflix_prices.currency
+from userbase left join email_sub on email_sub.id=userbase.user_id
+inner join netflix_prices on netflix_prices.country=userbase.country
+where email_sub.id is null and userbase.country not in ('Canada','United States')
+
+/*The Director of Content is requesting rating details for Hulu and Amazon featured drama shows that didn’t get content renewal for their content.*/
+/*Tables and Unique IDs:
+Ratings - Rating; Titles - Rating
+Streaming_Shows - Titles; Titles - Title
+Content_Expire - Show_ID; Titles - Show_ID*/
+select Streaming_Shows.Title, 
+Titles.Show_ID,
+CONTENT_EXPIRE.EXP_RENEWAL,
+ratings.ratinglevel as Ratings_Description
+from streaming_shows left join titles on titles.title=streaming_shows.title /*Pull all items from the streaming shows table and compare it to the Titles table to see if the titles in the Streaming Shows table are also in the Titles table*/
+left join content_expire on content_expire.show_id=titles.show_id
+left join ratings on ratings.rating=titles.rating
+where content_expire.exp_renewal is null and streaming_shows.hulu = 1 and streaming_shows.prime_video = 1
+
+
+	We are running a cross promotion with various NPOs (non-profit organizations) in order to get more subscribers who work in the NPO field to register for our email list. Anyone who signs up will receive a 10% monthly discount on their current monthly billing plan as long as they have been a subscriber for at least 12 months.
+Finance would also like to see what these potential subscribers' new monthly billing cost will be once the discount is applied, along with the annual revenue we will receive from the subscribers, and the difference between the annual revenue with the new discount applied and the annual revenue from the non-discounted price.
+Please provide a list of these customers (include names and IDs) along with their financial information requested by Finance. FYI, all NPO subscribers have a .org email address.
+
+/*- Need NPO employees who are NOT email subscribers 
+- User for at least 12 months
+- Current monthly billing 
+- 10% discount to their current billing 
+- New billing amount with the 10% discount 
+- Annual Revenue (Based on current monthly billing)
+- Annual Revenue (Based on discounted monthly billing)
+- Difference between the new annual revenue and the previous annual revenue billing
+- IDs 
+- Names*/
+
+/*Tables
+Email_Sub - List of email users
+Sub_Demo - .org(NPO) or not
+
+Common Fields:
+Email_Sub.ID=Sub_Demo.Sub_ID*/
+
+select sub_demo.*,
+email_sub.*,
+userbase.join_date,
+datediff(month,join_date,getdate()) as Term,
+userbase.monthly_revenue,
+userbase.monthly_revenue * .10 as Monthly_Discount_Amount,
+userbase.monthly_revenue *.90 as New_Monthly_Bill_Rate,
+userbase.monthly_revenue * 12 as Annual_Revenue,
+userbase.monthly_revenue *.90 * 12 as New_Annual_Revenue,
+(userbase.monthly_revenue *.90 * 12) - (userbase.monthly_revenue * 12) as Annual_Difference
+from sub_demo left join email_sub on email_sub.id=sub_demo.sub_id
+inner join userbase on userbase.user_id=sub_demo.sub_id
+where email_sub.id is null and sub_demo.e_dom like '%.org%' and datediff(month,join_date,getdate()) >= 12
+
+The content team is in the process of updating content information for TV shows and are in need of the number of mature and general audience rated shows that are featured on at least two streaming platforms that do not have casting information, along with their review scores for these shows.
+May you provide prior to EOD?
+/*- Mature and general audience rated shows 
+- Featured on at least two streaming platforms
+- DO NOT have casting information
+- Review scores
+
+Tables:
+Ratings
+Streaming_Shows
+Titles
+
+Common Columns:
+Streaming_Shows - Title
+Titles - Title*/
+
+select Streaming_shows.title,
+titles.cast,
+streaming_shows.hulu,
+streaming_shows.disneyplus,
+streaming_shows.netflix,
+streaming_shows.prime_video,
+streaming_shows.imdb,
+streaming_shows.rotten_tomatoes,
+streaming_shows.rating,
+ratings.ratinglevel,
+hulu+disneyplus+netflix+prime_video as Streaming_Count
+from streaming_shows left join titles on titles.title=streaming_shows.title
+inner join ratings on ratings.rating=streaming_shows.rating
+where titles.cast is null and (ratings.ratinglevel like '%General%' or ratings.ratinglevel like '%mature%')
+and hulu+disneyplus+netflix+prime_video >= 2
+
+/*We are launching a 90-day marketing partnership with Rotten Tomatoes and the VP of Content is inquiring about the scoring bands with Rotten Tomatoes for non-mature rated renewal dramas.
+I believe the scoring system is as follows:*/
+•	Under 60%: Rotten
+•	60% - 75%: Fresh
+•	75%+: Certified Fresh
+select streaming_shows.title,
+titles.title as Titles_Column,
+content_expire.exp_renewal,
+titles.listed_in,
+streaming_shows.rating,
+streaming_shows.rotten_tomatoes,
+case when rotten_tomatoes < 60 then 'Rotten' 
+     when rotten_tomatoes between 60 and 75 then 'Fresh' else 'Certified Fresh' end as RT_Score_Band
+from streaming_shows left join titles on titles.title=streaming_shows.title
+inner join content_expire on content_expire.show_id=titles.show_id
+where titles.listed_in like '%Drama%' and streaming_shows.rating != 'TV-MA'
+
+/*What would be the average monthly rate for each pricing plan in USD as well as the number of countries for Latin American markets?*/
+select 
+count(CASE WHEN Country in ('Argentina','Belize','Bolivia','Brazil','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','French Guiana ','Guadeloupe','Guatemala','Guyana','Haiti','Honduras','Martinique','Mexico','Nicaragua','Panama','Paraguay','Peru','Puerto Rico','Saint-Barthelemy','Suriname','Uruguay','Venezuela','Saint-Martin (French part)','Jamaica','Saint Lucia') 
+    THEN 'Latin America' ELSE 'Non Latin America' END) as Country_Type,
+    
+avg(CASE WHEN Country in ('Argentina','Belize','Bolivia','Brazil','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','French Guiana ','Guadeloupe','Guatemala','Guyana','Haiti','Honduras','Martinique','Mexico','Nicaragua','Panama','Paraguay','Peru','Puerto Rico','Saint-Barthelemy','Suriname','Uruguay','Venezuela','Saint-Martin (French part)','Jamaica','Saint Lucia') 
+    THEN premium_usd * 1.07 else premium_usd * 1.14 END) as New_Premium_USD,
+
+avg(CASE WHEN Country in ('Argentina','Belize','Bolivia','Brazil','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','French Guiana ','Guadeloupe','Guatemala','Guyana','Haiti','Honduras','Martinique','Mexico','Nicaragua','Panama','Paraguay','Peru','Puerto Rico','Saint-Barthelemy','Suriname','Uruguay','Venezuela','Saint-Martin (French part)','Jamaica','Saint Lucia') 
+    THEN mobile_usd * 1.07 else mobile_usd * 1.14 END) as New_Mobile_USD,
+
+avg(CASE WHEN Country in ('Argentina','Belize','Bolivia','Brazil','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','French Guiana ','Guadeloupe','Guatemala','Guyana','Haiti','Honduras','Martinique','Mexico','Nicaragua','Panama','Paraguay','Peru','Puerto Rico','Saint-Barthelemy','Suriname','Uruguay','Venezuela','Saint-Martin (French part)','Jamaica','Saint Lucia') 
+    THEN standard_usd * 1.07 else standard_usd * 1.14 END) as New_Standard_USD,
+
+avg(CASE WHEN Country in ('Argentina','Belize','Bolivia','Brazil','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','French Guiana ','Guadeloupe','Guatemala','Guyana','Haiti','Honduras','Martinique','Mexico','Nicaragua','Panama','Paraguay','Peru','Puerto Rico','Saint-Barthelemy','Suriname','Uruguay','Venezuela','Saint-Martin (French part)','Jamaica','Saint Lucia') 
+    THEN basic_usd * 1.07 else basic_usd * 1.14 END) as New_Basic_USD
+    
+from netflix_prices
+
+where CASE WHEN Country in ('Argentina','Belize','Bolivia','Brazil','Chile','Colombia','Costa Rica','Cuba','Dominican Republic','Ecuador','El Salvador','French Guiana','Guadeloupe','Guatemala','Guyana','Haiti','Honduras','Martinique','Mexico','Nicaragua','Panama','Paraguay','Peru','Puerto Rico','Saint-Barthelemy','Suriname','Uruguay','Venezuela','Saint-Martin (French part)','Jamaica','Saint Lucia') 
+    THEN 'Latin America' ELSE 'Non Latin America' END = 'Latin America'
+
+/*The CFO is looking to decrease basic prices by 8% in the EMEA market due to a new streaming competitor in the European market and increasing prices by 11% in the North American and Latin American markets (excluding the US) for customers that have been with us for at least 18 months.
+We also will allow the content size for the EMEA countries to remain the same but will increase the content size by 5% for the North American and Latin American countries in order to substantiate the price increase.
+Please provide the new annual revenue for each of the customers with these new prices along with the effective date of these changes, which will be 90 days from their last payment date, and the new content size for each of the countries in the EMEA, Latin American, and North American markets.
+•	United States (North American)
+•	Canada (North American)
+•	United Kingdom (EMEA)
+•	Australia (EMEA)
+•	Germany (EMEA)
+•	France (EMEA)
+•	Brazil	(Latin America)
+•	Mexico (North American)
+•	Spain	(EMEA)
+•	Italy	(EMEA)*/
+
+/* What's Needed:
+- EMEA countries
+- North American countries (excluding US)
+- Latin American countries
+- Customers been with us for at least 18 months
+- Content size for EMEA countries (no of tv shows + no of movies) 
+- Content size + 5% for Latin American countries (no of tv shows + no of movies) 
+- Content size + 5% for North American countries (no of tv shows + no of movies) 
+- Basic pricing
+- Basic pricing for EMEA, decrease by 8%
+- Basic pricing for LA and NA, increase by 11%
+- New annual revenue for each of the customers in these countries
+- Effective is 90 days from last payment date
+- Customers (Customer name, customer id, etc.)*/
+
+select userbase.user_id,
+userbase.subscription_type,
+userbase.join_date,
+datediff(month,userbase.join_date,getdate()) as Customer_Sub_Length,
+userbase.last_payment_date,
+dateadd(day,90,userbase.last_payment_date) as Effective_Date,
+userbase.monthly_revenue,
+userbase.country,
+case when userbase.country in ('Canada','Mexico','United States') then 'North America'
+    when userbase.country = 'Brazil' then 'Latin America'
+    else 'EMEA' end as Region,
+
+case when userbase.country in ('United States','Canada','Mexico','Brazil') then userbase.monthly_revenue*1.11
+else userbase.monthly_revenue*.92 end as New_Monthly_Pricing,
+
+case when userbase.country in ('United States','Canada','Mexico','Brazil') then userbase.monthly_revenue*1.11*12
+else userbase.monthly_revenue*.92*12 end as New_Annual_Pricing,
+
+netflix_countries.no_of_tv_shows,
+netflix_countries.no_of_movies,
+netflix_countries.no_of_tv_shows+netflix_countries.no_of_movies as Content_Size,
+case when userbase.country in ('Canada','Mexico','Brazil') then 
+(netflix_countries.no_of_tv_shows+netflix_countries.no_of_movies)*1.05
+else (netflix_countries.no_of_tv_shows+netflix_countries.no_of_movies) end as New_Content_Size
+
+from userbase join netflix_countries on userbase.country=netflix_countries.country
+
+where datediff(month,userbase.join_date,getdate()) >= 18 and userbase.subscription_type = 'Basic' and 
+userbase.country != 'United States'
+
+
+
+
+
+
+
+
+
+
+
+
+
